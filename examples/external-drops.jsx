@@ -123,11 +123,9 @@ class Demo extends React.Component {
   handleExternalDrop = treeNodes => {
     console.log('onExternalDrop', treeNodes);
     return new Promise(resolve => {
-      setTimeout(() => {
-        const treeData = [...this.state.gData, ...treeNodes];
-        this.setState({ gData: treeData });
-        resolve();
-      }, 0);
+      const treeData = [...this.state.gData, ...treeNodes];
+      this.setState({ gData: treeData });
+      resolve();
     });
   };
 

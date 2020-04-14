@@ -544,8 +544,8 @@ class Tree extends React.Component<TreeProps, TreeState> {
 
   handleOutsideDrop = (items: DataTransferItemList) => {
     const { onExternalDrop } = this.props;
-    const eventNodes = [];
 
+    const eventNodePromises = [];
     for (let i = 0; i < items.length; i += 1) {
       const { kind, type } = items[i];
       const promise = new Promise((resolve: (val: ExternalDropData) => void) => {
@@ -557,11 +557,12 @@ class Tree extends React.Component<TreeProps, TreeState> {
         }
       });
 
-      promise.then(data =>
-        eventNodes.push(this.createEventNode(`${data.title}-${data.type}`, data)),
+      eventNodePromises.push(
+        promise.then(data => this.createEventNode(`${data.title}-${data.type}`, data)),
       );
     }
-    onExternalDrop(eventNodes);
+
+    Promise.all(eventNodePromises).then(eventNodes => onExternalDrop(eventNodes));
   };
 
   onNodeDrop = (event: React.DragEvent<HTMLDivElement>, node: NodeInstance) => {
