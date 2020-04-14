@@ -120,15 +120,12 @@ class Demo extends React.Component {
     });
   };
 
-  handleExternalDrop = treeNode => {
-    console.log('handleExternalDrop this:', treeNode);
+  handleExternalDrop = treeNodes => {
+    console.log('onExternalDrop', treeNodes);
     return new Promise(resolve => {
       setTimeout(() => {
-        const matches = this.state.gData.filter(node => node.key === treeNode.key);
-        if (matches.length === 0) {
-          const treeData = [...this.state.gData, treeNode];
-          this.setState({ gData: treeData });
-        }
+        const treeData = [...this.state.gData, ...treeNodes];
+        this.setState({ gData: treeData });
         resolve();
       }, 0);
     });

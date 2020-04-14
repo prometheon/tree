@@ -31,3 +31,5 @@ lib
 /coverage
 yarn.lock
 es/
+
+.now

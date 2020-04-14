@@ -29,6 +29,7 @@ import {
   EventDataNode,
   NodeInstance,
   ScrollTo,
+  ExternalDropData,
 } from './interface';
 import {
   flattenTreeData,
@@ -131,7 +132,7 @@ export interface TreeProps {
     dropPosition: number;
     dropToGap: boolean;
   }) => void;
-  onExternalDrop?: (node: EventDataNode) => Promise<void>;
+  onExternalDrop?: (nodes: EventDataNode[]) => Promise<void>;
   /**
    * Used for `rc-tree-select` only.
    * Do not use in your production code directly since this will be refactor.
@@ -520,61 +521,65 @@ class Tree extends React.Component<TreeProps, TreeState> {
     this.dragNode = null;
   };
 
-  handleOutsideDrop = (items: DataTransferItemList) => {
-    const handleNewItem = itemData => {
-      const treeNodeRequiredProps = this.getTreeNodeRequiredProps();
-      const eventNode = convertNodePropsToEventData({
-        ...getTreeNodeProps(itemData.key, treeNodeRequiredProps),
-        data: itemData,
-        active: true,
-        external: true,
-      });
+  getUniqKey = (s: string) => {
+    const keys = Object.keys(this.state.keyEntities);
+    const exists = keys.filter(key => key === s).length > 0;
+    if (exists) {
+      return this.getUniqKey(`${s}-1`);
+    }
+    return s;
+  };
 
-      this.onNodeLoad(eventNode);
-    };
+  createEventNode = (key: string, itemData: ExternalDropData) => {
+    const uniqueKey = this.getUniqKey(key);
+    const treeNodeRequiredProps = this.getTreeNodeRequiredProps();
+    const eventNode = convertNodePropsToEventData({
+      ...getTreeNodeProps(uniqueKey, treeNodeRequiredProps),
+      data: { key: uniqueKey, ...itemData },
+      active: true,
+    });
+
+    return eventNode;
+  };
+
+  handleOutsideDrop = (items: DataTransferItemList) => {
+    const { onExternalDrop } = this.props;
+    const eventNodes = [];
 
     for (let i = 0; i < items.length; i += 1) {
       const { kind, type } = items[i];
-      if (kind === 'string') {
-        items[i].getAsString(s => {
-          const newItem = {
-            key: s,
-            title: s,
-            type,
-            kind,
-          };
-          handleNewItem(newItem);
-        });
-      } else {
-        const file = items[i].getAsFile();
-        const newFileItem = {
-          key: file.name,
-          title: file.name,
-          type,
-          kind,
-          file,
-        };
-        handleNewItem(newFileItem);
-      }
+      const promise = new Promise((resolve: (val: ExternalDropData) => void) => {
+        if (kind === 'string') {
+          items[i].getAsString(s => resolve({ title: s, type, kind }));
+        } else {
+          const file = items[i].getAsFile();
+          resolve({ title: file.name, file, kind, type });
+        }
+      });
+
+      promise.then(data =>
+        eventNodes.push(this.createEventNode(`${data.title}-${data.type}`, data)),
+      );
     }
+    onExternalDrop(eventNodes);
   };
 
   onNodeDrop = (event: React.DragEvent<HTMLDivElement>, node: NodeInstance) => {
     const { dragNodesKeys = [], dropPosition } = this.state;
-    const { onDrop } = this.props;
+    const { onDrop, onExternalDrop } = this.props;
     const { eventKey, pos } = node.props;
-
-    // handle external item drop
-    const outsideDropData = event.dataTransfer.items;
-    if (outsideDropData.length > 0) {
-      this.handleOutsideDrop(outsideDropData);
-      return;
-    }
 
     this.setState({
       dragOverNodeKey: '',
     });
     this.cleanDragState();
+
+    // handle external item drop
+    const outsideDropData = event.dataTransfer.items;
+    if (outsideDropData.length > 0 && onExternalDrop) {
+      this.handleOutsideDrop(outsideDropData);
+      return;
+    }
 
     if (dragNodesKeys.indexOf(eventKey) !== -1) {
       warning(false, "Can not drop to dragNode(include it's children node)");
@@ -754,13 +759,8 @@ class Tree extends React.Component<TreeProps, TreeState> {
     new Promise(resolve => {
       // We need to get the latest state of loading/loaded keys
       this.setState(({ loadedKeys = [], loadingKeys = [] }): any => {
-        const { loadData, onLoad, onExternalDrop } = this.props;
+        const { loadData, onLoad } = this.props;
         const { key } = treeNode;
-
-        if (onExternalDrop && treeNode.external) {
-          onExternalDrop(treeNode);
-          return {};
-        }
 
         if (!loadData || loadedKeys.indexOf(key) !== -1 || loadingKeys.indexOf(key) !== -1) {
           // react 15 will warn if return null

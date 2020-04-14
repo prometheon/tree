@@ -297,7 +297,6 @@ export function convertNodePropsToEventData(props: TreeNodeProps): EventDataNode
     dragOverGapBottom,
     pos,
     active,
-    external,
   } = props;
 
   const eventData = {
@@ -313,7 +312,6 @@ export function convertNodePropsToEventData(props: TreeNodeProps): EventDataNode
     dragOverGapBottom,
     pos,
     active,
-    external,
   };
 
   if (!('props' in eventData)) {
