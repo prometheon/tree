@@ -1,7 +1,14 @@
 import * as React from 'react';
 import toArray from 'rc-util/lib/Children/toArray';
 import warning from 'rc-util/lib/warning';
-import { DataNode, FlattenNode, NodeElement, DataEntity, Key, EventDataNode } from '../interface';
+import {
+  DataNode,
+  FlattenNode,
+  NodeElement,
+  DataEntity,
+  Key,
+  EventDataNode,
+} from '../interface';
 import { getPosition, isTreeNode } from '../util';
 import { TreeNodeProps } from '../TreeNode';
 
@@ -50,7 +57,10 @@ export function convertTreeToData(rootNodes: React.ReactNode): DataNode[] {
       .map(treeNode => {
         // Filter invalidate node
         if (!isTreeNode(treeNode)) {
-          warning(!treeNode, 'Tree/TreeNode can only accept TreeNode as children.');
+          warning(
+            !treeNode,
+            'Tree/TreeNode can only accept TreeNode as children.',
+          );
           return null;
         }
 
@@ -283,7 +293,9 @@ export function getTreeNodeProps(
   return treeNodeProps;
 }
 
-export function convertNodePropsToEventData(props: TreeNodeProps): EventDataNode {
+export function convertNodePropsToEventData(
+  props: TreeNodeProps,
+): EventDataNode {
   const {
     data,
     expanded,
