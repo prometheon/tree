@@ -48,7 +48,7 @@ class Demo extends React.Component {
     });
   };
 
-  onDrop = info => {
+  onDrop = (info, dragObj = null) => {
     console.log('drop', info);
     const dropKey = info.node.props.eventKey;
     const dragKey = info.dragNode.props.eventKey;
@@ -69,11 +69,12 @@ class Demo extends React.Component {
     const data = [...this.state.gData];
 
     // Find dragObject
-    let dragObj;
-    loop(data, dragKey, (item, index, arr) => {
-      arr.splice(index, 1);
-      dragObj = item;
-    });
+    if (!dragObj) {
+      loop(data, dragKey, (item, index, arr) => {
+        arr.splice(index, 1);
+        dragObj = item;
+      });
+    }
 
     if (!info.dropToGap) {
       // Drop on the content
@@ -120,13 +121,9 @@ class Demo extends React.Component {
     });
   };
 
-  handleExternalDrop = treeNodes => {
-    console.log('onExternalDrop', treeNodes);
-    return new Promise(resolve => {
-      const treeData = [...this.state.gData, ...treeNodes];
-      this.setState({ gData: treeData });
-      resolve();
-    });
+  handleExternalDrop = items => {
+    console.log('onExternalDrop', items);
+    items.map(item => this.onDrop(item, item.dragNode));
   };
 
   render() {
