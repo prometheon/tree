@@ -416,12 +416,10 @@ class Tree extends React.Component<TreeProps, TreeState> {
     const { onDragEnter } = this.props;
     const { pos, eventKey } = node.props;
 
-    if (!this.dragNode) return;
-
     const dropPosition = calcDropPosition(event, node);
 
-    // Skip if drag node is self
-    if (this.dragNode.props.eventKey === eventKey && dropPosition === 0) {
+    // // Skip if drag node is self
+    if (this.dragNode && this.dragNode.props.eventKey === eventKey && dropPosition === 0) {
       this.setState({
         dragOverNodeKey: '',
         dropPosition: null,
@@ -480,7 +478,7 @@ class Tree extends React.Component<TreeProps, TreeState> {
     const { eventKey } = node.props;
 
     // Update drag position
-    if (this.dragNode && eventKey === this.state.dragOverNodeKey) {
+    if (eventKey === this.state.dragOverNodeKey) {
       const dropPosition = calcDropPosition(event, node);
 
       if (dropPosition === this.state.dropPosition) return;
