@@ -111,7 +111,14 @@ export interface TreeProps {
         dropPosition: number;
         dropToGap: boolean;
     }) => void;
-    onExternalDrop?: (nodes: EventDataNode[]) => Promise<void>;
+    onExternalDrop?: (items: {
+        event: React.MouseEvent;
+        node: EventDataNode;
+        dragNode: EventDataNode;
+        dragNodesKeys: Key[];
+        dropPosition: number;
+        dropToGap: boolean;
+    }[]) => Promise<void>;
     /**
      * Used for `rc-tree-select` only.
      * Do not use in your production code directly since this will be refactor.
