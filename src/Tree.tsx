@@ -132,7 +132,16 @@ export interface TreeProps {
     dropPosition: number;
     dropToGap: boolean;
   }) => void;
-  onExternalDrop?: (nodes: EventDataNode[]) => Promise<void>;
+  onExternalDrop?: (
+    items: {
+      event: React.MouseEvent;
+      node: EventDataNode;
+      dragNode: EventDataNode;
+      dragNodesKeys: Key[];
+      dropPosition: number;
+      dropToGap: boolean;
+    }[],
+  ) => Promise<void>;
   /**
    * Used for `rc-tree-select` only.
    * Do not use in your production code directly since this will be refactor.
@@ -413,8 +422,10 @@ class Tree extends React.Component<TreeProps, TreeState> {
    */
   onNodeDragEnter = (event: React.MouseEvent<HTMLDivElement>, node: NodeInstance) => {
     const { expandedKeys, keyEntities } = this.state;
-    const { onDragEnter } = this.props;
+    const { onDragEnter, onExternalDrop } = this.props;
     const { pos, eventKey } = node.props;
+
+    if (!this.dragNode && !onExternalDrop) return;
 
     const dropPosition = calcDropPosition(event, node);
 
@@ -474,11 +485,11 @@ class Tree extends React.Component<TreeProps, TreeState> {
   };
 
   onNodeDragOver = (event: React.MouseEvent<HTMLDivElement>, node: NodeInstance) => {
-    const { onDragOver } = this.props;
+    const { onDragOver, onExternalDrop } = this.props;
     const { eventKey } = node.props;
 
     // Update drag position
-    if (eventKey === this.state.dragOverNodeKey) {
+    if ((onExternalDrop || this.dragNode) && eventKey === this.state.dragOverNodeKey) {
       const dropPosition = calcDropPosition(event, node);
 
       if (dropPosition === this.state.dropPosition) return;
@@ -572,6 +583,8 @@ class Tree extends React.Component<TreeProps, TreeState> {
     const { onDrop, onExternalDrop } = this.props;
     const { eventKey, pos } = node.props;
     const outsideDropData = event.dataTransfer.items;
+
+    if (!this.dragNode && !onExternalDrop) return;
 
     this.setState({
       dragOverNodeKey: '',
