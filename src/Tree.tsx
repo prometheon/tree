@@ -611,7 +611,7 @@ class Tree extends React.Component<TreeProps, TreeState> {
       dropResult.dropToGap = true;
     }
 
-    if (outsideDropData.length > 0 && onExternalDrop) {
+    if (!this.dragNode && outsideDropData.length > 0 && onExternalDrop) {
       dropResult.event.persist();
       this.handleOutsideDrop(outsideDropData, dropResult);
       return;
