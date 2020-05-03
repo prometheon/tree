@@ -29,6 +29,7 @@ import {
   EventDataNode,
   NodeInstance,
   ScrollTo,
+  ExternalDropData,
 } from './interface';
 import {
   flattenTreeData,
@@ -131,6 +132,16 @@ export interface TreeProps {
     dropPosition: number;
     dropToGap: boolean;
   }) => void;
+  onExternalDrop?: (
+    items: {
+      event: React.MouseEvent;
+      node: EventDataNode;
+      dragNode: EventDataNode;
+      dragNodesKeys: Key[];
+      dropPosition: number;
+      dropToGap: boolean;
+    }[],
+  ) => Promise<void>;
   /**
    * Used for `rc-tree-select` only.
    * Do not use in your production code directly since this will be refactor.
@@ -411,15 +422,15 @@ class Tree extends React.Component<TreeProps, TreeState> {
    */
   onNodeDragEnter = (event: React.MouseEvent<HTMLDivElement>, node: NodeInstance) => {
     const { expandedKeys, keyEntities } = this.state;
-    const { onDragEnter } = this.props;
+    const { onDragEnter, onExternalDrop } = this.props;
     const { pos, eventKey } = node.props;
 
-    if (!this.dragNode) return;
+    if (!this.dragNode && !onExternalDrop) return;
 
     const dropPosition = calcDropPosition(event, node);
 
-    // Skip if drag node is self
-    if (this.dragNode.props.eventKey === eventKey && dropPosition === 0) {
+    // // Skip if drag node is self
+    if (this.dragNode && this.dragNode.props.eventKey === eventKey && dropPosition === 0) {
       this.setState({
         dragOverNodeKey: '',
         dropPosition: null,
@@ -474,11 +485,11 @@ class Tree extends React.Component<TreeProps, TreeState> {
   };
 
   onNodeDragOver = (event: React.MouseEvent<HTMLDivElement>, node: NodeInstance) => {
-    const { onDragOver } = this.props;
+    const { onDragOver, onExternalDrop } = this.props;
     const { eventKey } = node.props;
 
     // Update drag position
-    if (this.dragNode && eventKey === this.state.dragOverNodeKey) {
+    if ((onExternalDrop || this.dragNode) && eventKey === this.state.dragOverNodeKey) {
       const dropPosition = calcDropPosition(event, node);
 
       if (dropPosition === this.state.dropPosition) return;
@@ -519,10 +530,61 @@ class Tree extends React.Component<TreeProps, TreeState> {
     this.dragNode = null;
   };
 
-  onNodeDrop = (event: React.MouseEvent<HTMLDivElement>, node: NodeInstance) => {
+  getUniqKey = (s: string) => {
+    const keys = Object.keys(this.state.keyEntities);
+    const exists = keys.filter(key => key === s).length > 0;
+    if (exists) {
+      return this.getUniqKey(`${s}-1`);
+    }
+    return s;
+  };
+
+  createEventNode = (key: string, itemData: ExternalDropData) => {
+    const uniqueKey = this.getUniqKey(key);
+    const treeNodeRequiredProps = this.getTreeNodeRequiredProps();
+    const eventNode = convertNodePropsToEventData({
+      ...getTreeNodeProps(uniqueKey, treeNodeRequiredProps),
+      data: { key: uniqueKey, ...itemData },
+    });
+
+    return eventNode;
+  };
+
+  handleOutsideDrop = (items: DataTransferItemList, dropResult) => {
+    dropResult.event.persist();
+    const { onExternalDrop } = this.props;
+    const dropResPromises = [];
+
+    for (let i = 0; i < items.length; i += 1) {
+      const { kind, type } = items[i];
+      const promise = new Promise((resolve: (val: ExternalDropData) => void) => {
+        if (kind === 'string') {
+          items[i].getAsString(s => resolve({ title: s, type, kind }));
+        } else {
+          const file = items[i].getAsFile();
+          resolve({ title: file.name, file, kind, type });
+        }
+      }).then(data => {
+        const dragNode = this.createEventNode(`${data.title}-${data.type}`, data);
+        return {
+          ...dropResult,
+          dragNode,
+        };
+      });
+
+      dropResPromises.push(promise);
+    }
+
+    Promise.all(dropResPromises).then(res => onExternalDrop(res));
+  };
+
+  onNodeDrop = (event: React.DragEvent<HTMLDivElement>, node: NodeInstance) => {
     const { dragNodesKeys = [], dropPosition } = this.state;
-    const { onDrop } = this.props;
+    const { onDrop, onExternalDrop } = this.props;
     const { eventKey, pos } = node.props;
+    const outsideDropData = event.dataTransfer.items;
+
+    if (!this.dragNode && !onExternalDrop) return;
 
     this.setState({
       dragOverNodeKey: '',
@@ -539,7 +601,7 @@ class Tree extends React.Component<TreeProps, TreeState> {
     const dropResult = {
       event,
       node: convertNodePropsToEventData(node.props),
-      dragNode: convertNodePropsToEventData(this.dragNode.props),
+      dragNode: null,
       dragNodesKeys: dragNodesKeys.slice(),
       dropPosition: dropPosition + Number(posArr[posArr.length - 1]),
       dropToGap: false,
@@ -547,6 +609,16 @@ class Tree extends React.Component<TreeProps, TreeState> {
 
     if (dropPosition !== 0) {
       dropResult.dropToGap = true;
+    }
+
+    if (!this.dragNode && outsideDropData.length > 0 && onExternalDrop) {
+      dropResult.event.persist();
+      this.handleOutsideDrop(outsideDropData, dropResult);
+      return;
+    }
+
+    if (this.dragNode) {
+      dropResult.dragNode = convertNodePropsToEventData(this.dragNode.props);
     }
 
     if (onDrop) {

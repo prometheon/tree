@@ -73,3 +73,10 @@ export interface FlattenNode {
 }
 
 export type ScrollTo = (scroll: { key: Key }) => void;
+
+export interface ExternalDropData {
+  title: string;
+  kind: string;
+  type: string;
+  file?: File;
+}
